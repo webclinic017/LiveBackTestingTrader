@@ -95,11 +95,16 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         '''Returns broker with *args, **kwargs from registered ``BrokerCls``'''
         return cls.BrokerCls(*args, **kwargs)
 
-    def __init__(self, exchange, currency, config, retries, debug=False):
+    def __init__(self, exchange, currency, config, retries, debug=False, testnet=False):
         self.exchange = getattr(ccxt, exchange)(config)
         self.currency = currency
         self.retries = retries
         self.debug = debug
+        btmx = self.exchange
+        if testnet:
+            if 'test' in btmx.urls:
+                btmx.urls['api']=btmx.urls['test']
+                btmx.urls['api'] = btmx.urls['test']
         balance = self.exchange.fetch_balance() if 'secret' in config else 0
         self._cash = 0 if balance == 0 else balance['free'][currency]
         self._value = 0 if balance == 0 else balance['total'][currency]
