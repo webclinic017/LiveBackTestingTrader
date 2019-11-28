@@ -1,73 +1,31 @@
-from __future__ import(absolute_import, division, print_function, unicode_literals)
-from datetime import datetime, timedelta
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import datetime  # For datetime objects
+import os.path  # To manage paths
+import sys  # To find out the script name (in argv[0])
+
+
+# Import the backtrader platform
 import backtrader as bt
-from backtrader import cerebro
-import time
-import ccxt
-from ccxtbt import CCXTStore
-
-#import TestStrategy
 
 
-def connect_broker():
-    apikey = 'siX-NO9IeVWstmn1zA2e904N'
-    secret = 'ieEjNwz9TDAzg_B2EVkpgzkchDeNmyy9_UNB03B567Gwh0A_'
-    
-    cerebro = bt.Cerebro(quicknotify=True)
-    
-    
-    # Add the strategy
-    cerebro.addstrategy(TestStrategy)
-    
-    # Create our store
-    config = {'apiKey': apikey,
-                'secret': secret,
-                'enableRateLimit': True
-                }
-    
-    # IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
-    # for get cash or value if You have never held any LTC coins in your account.
-    # So switch LTC to a coin you have funded previously if you get errors
-    store = CCXTStore(exchange='bitmex', currency='BTC', config=config, retries=5, debug=False, testnet=True)
-    
-    
-    
-    print("I am here")    
-    print(store.exchange.urls)    
-    
-    
-    broker = store.getbroker()
-    cerebro.setbroker(broker)
-    
-    # Get our data
-    # Drop newest will prevent us from loading partial data from incomplete candles
-    hist_start_date = datetime.utcnow() - timedelta(minutes=50)
-    data = store.getdata(dataname='BTC/USD', name="BTCUSD",
-                             timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
-                             compression=1, ohlcv_limit=50, drop_newest=True) #, historical=True)
-    
-    # Add the feed
-    cerebro.adddata(data)
-    
-    # Run the strategy
-    cerebro.run()
-
+# Create a Stratey
 class TestStrategy(bt.Strategy):
     params = (
-        ('maperiod', 1),
-        ('printlog', True),
+        ('maperiod', 15),
+        ('printlog', False),
     )
 
-    def log(self, txt, dt=None, doprint=False):
+    def log(self, txt, dt=None, doprint=True):
         ''' Logging function fot this strategy'''
         if self.params.printlog or doprint:
-            dt = dt or self.datas[0].datetime.datetime(0)
+            dt = dt or self.datas[0].datetime.date(0)
             print('%s, %s' % (dt.isoformat(), txt))
 
     def __init__(self):
         # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
-        self.dataopen = self.datas[0].open
 
         # To keep track of pending orders and buy price/commission
         self.order = None
@@ -118,7 +76,7 @@ class TestStrategy(bt.Strategy):
 
     def next(self):
         # Simply log the closing price of the series from the reference
-        self.log('Open %.2f , Close %.2f' % (self.dataopen[0], self.dataclose[0]))
+        self.log('Close, %.2f' % self.dataclose[0])
 
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
@@ -128,7 +86,7 @@ class TestStrategy(bt.Strategy):
         if not self.position:
 
             # Not yet ... we MIGHT BUY if ...
-            #if self.dataclose[0] > self.sma[0]:
+            if self.dataclose[0] > self.sma[0]:
 
                 # BUY, BUY, BUY!!! (with all possible default parameters)
                 self.log('BUY CREATE, %.2f' % self.dataclose[0])
@@ -151,20 +109,34 @@ class TestStrategy(bt.Strategy):
 
 
 if __name__ == '__main__':
+    # Create a cerebro entity
     cerebro = bt.Cerebro()
 
-    hist_start_date = datetime.utcnow() - timedelta(minutes=10)
-    data_min = bt.feeds.CCXT(exchange='bitmex', symbol="BTC/USD", name="btc_usd_min", fromdate=hist_start_date,
-                             timeframe=bt.TimeFrame.Minutes)
-    
-                  
-    cerebro.adddata(data_min)
-    cerebro.addstrategy(TestStrategy)
-    connect_broker()
-   
-    
+    # Add a strategy
+    strats = cerebro.optstrategy(
+        TestStrategy,
+        maperiod=range(10, 31))
+
+    # Datas are in a subfolder of the samples. Need to find where the script is
+    # because it could have been called from anywhere
+    modpath = os.path.dirname(os.path.abspath(sys.argv[0]))
+    datapath = os.path.join(modpath, 'datas/orcl-1995-2014.txt')
+
+    # Create a Data Feed
+    data = bt.feeds.YahooFinanceCSVData(
+        dataname=datapath,
+        # Do not pass values before this date
+        fromdate=datetime.datetime(2000, 1, 1),
+        # Do not pass values before this date
+        todate=datetime.datetime(2000, 12, 31),
+        # Do not pass values after this date
+        reverse=False)
+
+    # Add the Data Feed to Cerebro
+    cerebro.adddata(data)
+
     # Set our desired cash start
-#    cerebro.broker.setcash(1000.0)
+    cerebro.broker.setcash(1000.0)
 
     # Add a FixedSize sizer according to the stake
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
@@ -174,5 +146,4 @@ if __name__ == '__main__':
 
     # Run over everything
     cerebro.run(maxcpus=1)
-    
 
