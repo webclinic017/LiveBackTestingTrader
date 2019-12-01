@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+
 import datetime  # For datetime objects
 import os.path  # To manage paths
 import sys  # To find out the script name (in argv[0])
@@ -20,7 +21,7 @@ class TestStrategy(bt.Strategy):
     def log(self, txt, dt=None, doprint=True):
         ''' Logging function fot this strategy'''
         if self.params.printlog or doprint:
-            dt = dt or self.datas[0].datetime.date(0)
+            dt = dt or self.datas[0].datetime.datetime(0)
             print('%s, %s' % (dt.isoformat(), txt))
 
     def __init__(self):
@@ -121,23 +122,25 @@ if __name__ == '__main__':
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
     modpath = os.path.dirname(os.path.abspath(sys.argv[0]))
-    datapath = os.path.join(modpath, 'datas/bitstampUSD_1-min_data_2012-01-01_to_2019-08-12.csv')
+    datapath = os.path.join(modpath, 'datas/2019.csv')
 
-    # Create a Data Feed
+#    # Create a Data Feed
 #    data = bt.feeds.YahooFinanceCSVData(
 #        dataname=datapath,
 #        # Do not pass values before this date
-#        fromdate=datetime.datetime(2019, 1, 1),
+#        fromdate=datetime.datetime(2000, 1, 1),
 #        # Do not pass values before this date
-#        todate=datetime.datetime(2019, 12, 31),
+#        todate=datetime.datetime(2000, 12, 31),
 #        # Do not pass values after this date
 #        reverse=False)
-#    
+    
     data = bt.feeds.GenericCSVData(
     dataname=datapath,
-    fromdate=datetime.datetime(2019, 1, 1),
-    todate=datetime.datetime(2019, 1, 2),
+    fromdate=datetime.datetime(2019, 3, 1),
+    todate=datetime.datetime(2019, 3, 2),
     nullvalue=0.0,
+    compression=1,
+    timeframe=bt.TimeFrame.Minutes,
     dtformat=1,
     datetime=0,
     high=2,
