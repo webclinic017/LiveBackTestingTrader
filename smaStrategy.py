@@ -1,10 +1,10 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-
 import datetime  # For datetime objects
 import os.path  # To manage paths
 import sys  # To find out the script name (in argv[0])
+import pandas
 
 
 # Import the backtrader platform
@@ -67,7 +67,7 @@ class TestStrategy(bt.Strategy):
             self.log('Order Canceled/Margin/Rejected')
 
         # Write down: no pending order
-        self.order = None
+#       self.order = None
 
     def notify_trade(self, trade):
         if not trade.isclosed:
@@ -83,7 +83,7 @@ class TestStrategy(bt.Strategy):
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
             return
-
+        
         # Check if we are in the market
         if not self.position:
 
@@ -95,6 +95,7 @@ class TestStrategy(bt.Strategy):
 
                 # Keep track of the created order to avoid a 2nd order
                 self.order = self.buy()
+                self.log(self.order)
 
         else:
 
@@ -116,15 +117,14 @@ if __name__ == '__main__':
 
     # Add a strategy
     strats = cerebro.optstrategy(
-        TestStrategy,
-        maperiod=range(10, 31))
+        TestStrategy)
 
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
     modpath = os.path.dirname(os.path.abspath(sys.argv[0]))
-    datapath = os.path.join(modpath, 'datas/2019.csv')
+    datapath = os.path.join(modpath, '')
 
-#    # Create a Data Feed
+    # Create a Data Feed
 #    data = bt.feeds.YahooFinanceCSVData(
 #        dataname=datapath,
 #        # Do not pass values before this date
@@ -133,31 +133,31 @@ if __name__ == '__main__':
 #        todate=datetime.datetime(2000, 12, 31),
 #        # Do not pass values after this date
 #        reverse=False)
-    
-    data = bt.feeds.GenericCSVData(
-    dataname=datapath,
-    fromdate=datetime.datetime(2019, 3, 1),
-    todate=datetime.datetime(2019, 3, 2),
-    nullvalue=0.0,
-    compression=1,
-    timeframe=bt.TimeFrame.Minutes,
-    dtformat=1,
-    datetime=0,
-    high=2,
-    low=3,
-    open=1,
-    close=4,
-    volume=5
-)
 
-    # Add the Data Feed to Cerebro
+    data = bt.feeds.GenericCSVData(dataname="./datas/2019.csv",
+                                   datetime=0,
+                                   fromdate=datetime.datetime(2019,3,1),
+                                   todate=datetime.datetime(2019,3,2),
+                                   open=1,
+                                   high=2,
+                                   low=3,
+                                   close=4,
+                                   openinterest=-1,
+                                   time=-1,
+                                   volume=-1,
+                                   timeframe=bt.TimeFrame.Minutes,
+                                   compression=1,
+                                   dtformat=1)
+
+#     Add the Data Feed to Cerebro
     cerebro.adddata(data)
+    # Add the Data Feed to Cerebro
 
     # Set our desired cash start
-    cerebro.broker.setcash(1000.0)
+    cerebro.broker.setcash(10000.0)
 
     # Add a FixedSize sizer according to the stake
-    cerebro.addsizer(bt.sizers.FixedSize, stake=10)
+    cerebro.addsizer(bt.sizers.FixedSize, stake=1)
 
     # Set the commission
     cerebro.broker.setcommission(commission=0.0)
