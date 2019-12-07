@@ -5,6 +5,7 @@ import datetime  # For datetime objects
 import os.path  # To manage paths
 import sys  # To find out the script name (in argv[0])
 import pandas
+import math
 
 
 # Import the backtrader platform
@@ -18,7 +19,7 @@ class TestStrategy(bt.Strategy):
         ('printlog', False),
     )
 
-    def log(self, txt, dt=None, doprint=True):
+    def log(self, txt, dt=None, doprint=False):
         ''' Logging function fot this strategy'''
         if self.params.printlog or doprint:
             dt = dt or self.datas[0].datetime.datetime(0)
@@ -67,7 +68,7 @@ class TestStrategy(bt.Strategy):
             self.log('Order Canceled/Margin/Rejected')
 
         # Write down: no pending order
-#       self.order = None
+        self.order = None
 
     def notify_trade(self, trade):
         if not trade.isclosed:
@@ -79,7 +80,10 @@ class TestStrategy(bt.Strategy):
     def next(self):
         # Simply log the closing price of the series from the reference
         self.log('Open %.2f , Close %.2f,  SMA %.2f' % (self.dataopen[0], self.dataclose[0], self.sma[0]))
-
+        
+#        handle NaN data that causes Order Canceled/Margin/Rejected error 
+        if (math.isnan(self.dataopen[0]) or math.isnan(self.dataclose[0]) or math.isnan(self.sma[0])):
+            return
         # Check if an order is pending ... if yes, we cannot send a 2nd one
         if self.order:
             return
@@ -95,7 +99,7 @@ class TestStrategy(bt.Strategy):
 
                 # Keep track of the created order to avoid a 2nd order
                 self.order = self.buy()
-                self.log(self.order)
+#                self.log(self.order)
 
         else:
 
@@ -117,7 +121,8 @@ if __name__ == '__main__':
 
     # Add a strategy
     strats = cerebro.optstrategy(
-        TestStrategy)
+        TestStrategy,
+        maperiod=range(10, 31))
 
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
@@ -134,14 +139,14 @@ if __name__ == '__main__':
 #        # Do not pass values after this date
 #        reverse=False)
 
-    data = bt.feeds.GenericCSVData(dataname="./datas/2019.csv",
-                                   datetime=0,
+    data = bt.feeds.GenericCSVData(dataname="./datas/na_cleaned_2019.csv",
+                                   datetime=1,
                                    fromdate=datetime.datetime(2019,3,1),
                                    todate=datetime.datetime(2019,3,2),
-                                   open=1,
-                                   high=2,
-                                   low=3,
-                                   close=4,
+                                   open=2,
+                                   high=3,
+                                   low=4,
+                                   close=5,
                                    openinterest=-1,
                                    time=-1,
                                    volume=-1,
@@ -154,13 +159,15 @@ if __name__ == '__main__':
     # Add the Data Feed to Cerebro
 
     # Set our desired cash start
-    cerebro.broker.setcash(10000.0)
+    cerebro.broker.setcash(100000.0)
 
     # Add a FixedSize sizer according to the stake
     cerebro.addsizer(bt.sizers.FixedSize, stake=1)
 
     # Set the commission
     cerebro.broker.setcommission(commission=0.0)
-    print("I am here")
+    print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
     # Run over everything
     cerebro.run(maxcpus=1)
+    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
