@@ -19,7 +19,7 @@ class TestStrategy(bt.Strategy):
         ('printlog', False),
     )
 
-    def log(self, txt, dt=None, doprint=False):
+    def log(self, txt, dt=None, doprint=True):
         ''' Logging function fot this strategy'''
         if self.params.printlog or doprint:
             dt = dt or self.datas[0].datetime.datetime(0)
@@ -114,16 +114,51 @@ class TestStrategy(bt.Strategy):
         self.log('(MA Period %2d) Ending Value %.2f' %
                  (self.params.maperiod, self.broker.getvalue()), doprint=True)
 
+def printTradeAnalysis(analyzer):
+        '''
+        Function to print the Technical Analysis results in a nice format.
+        '''
+        #Get the results we are interested in
+        total_open = analyzer.total.open
+        total_closed = analyzer.total.closed
+        total_won = analyzer.won.total
+        total_lost = analyzer.lost.total
+        win_streak = analyzer.streak.won.longest
+        lose_streak = analyzer.streak.lost.longest
+        pnl_net = round(analyzer.pnl.net.total,2)
+        strike_rate = (total_won / total_closed) * 100
+        #Designate the rows
+        h1 = ['Total Open', 'Total Closed', 'Total Won', 'Total Lost']
+        h2 = ['Strike Rate','Win Streak', 'Losing Streak', 'PnL Net']
+        r1 = [total_open, total_closed,total_won,total_lost]
+        r2 = [strike_rate, win_streak, lose_streak, pnl_net]
+        #Check which set of headers is the longest.
+        if len(h1) > len(h2):
+            header_length = len(h1)
+        else:
+            header_length = len(h2)
+        #Print the rows
+        print_list = [h1,r1,h2,r2]
+        row_format ="{:<20}" * (header_length + 1)
+        print("Trade Analysis Results:")
+        for row in print_list:
+            print(row_format.format('',*row))
+    
+def printSQN(analyzer):
+    sqn = round(analyzer.sqn,2)
+    print('SQN: {}'.format(sqn))
 
 if __name__ == '__main__':
     # Create a cerebro entity
     cerebro = bt.Cerebro()
 
-    # Add a strategy
-    strats = cerebro.optstrategy(
-        TestStrategy,
-        maperiod=range(10, 31))
 
+# optstrategy approach doesnt work with analyzers as of now
+    # Add a strategy
+#    strats = cerebro.optstrategy(
+#        TestStrategy,
+#        maperiod=range(10, 31))
+    cerebro.addstrategy(TestStrategy);
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
     modpath = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -160,6 +195,10 @@ if __name__ == '__main__':
 
     # Set our desired cash start
     cerebro.broker.setcash(100000.0)
+    
+    # Add the analyzers we are interested in
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="ta")
+    cerebro.addanalyzer(bt.analyzers.SQN, _name="sqn")
 
     # Add a FixedSize sizer according to the stake
     cerebro.addsizer(bt.sizers.FixedSize, stake=1)
@@ -169,5 +208,14 @@ if __name__ == '__main__':
     print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
 
     # Run over everything
-    cerebro.run(maxcpus=1)
+    strategies = cerebro.run(maxcpus=1)
     print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    
+    firstStrat = strategies[0]
+    # print the analyzers
+    printTradeAnalysis(firstStrat.analyzers.ta.get_analysis())
+    printSQN(firstStrat.analyzers.sqn.get_analysis())
+    
+    cerebro.plot(volume=False)
+    
+    
