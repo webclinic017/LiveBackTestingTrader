@@ -148,6 +148,36 @@ def printSQN(analyzer):
     sqn = round(analyzer.sqn,2)
     print('SQN: {}'.format(sqn))
 
+def printDrawDownAnalysis(analyzer):
+    '''
+    Function to print the Technical Analysis results in a nice format.
+    '''
+    #Get the results we are interested in
+    drawdown = round(analyzer.drawdown, 2)
+    moneydown = round(analyzer.moneydown, 2)
+    length = analyzer.len
+    max_dd = round(analyzer.max.drawdown, 2)
+    max_md = round(analyzer.max.moneydown, 2)
+    max_len = analyzer.max.len
+
+    #Designate the rows
+    h1 = ['Drawdown', 'Moneydown', 'Length']
+    h2 = ['Max drawdown','Max moneydown', 'Max len']
+    r1 = [drawdown, moneydown,length]
+    r2 = [max_dd, max_md, max_len]
+    #Check which set of headers is the longest.
+    if len(h1) > len(h2):
+        header_length = len(h1)
+    else:
+        header_length = len(h2)
+    #Print the rows
+    print_list = [h1,r1,h2,r2]
+    row_format ="{:<20}" * (header_length + 1)
+    print("Drawdown Analysis Results:")
+    for row in print_list:
+        print(row_format.format('',*row))
+    
+
 if __name__ == '__main__':
     # Create a cerebro entity
     cerebro = bt.Cerebro()
@@ -199,6 +229,8 @@ if __name__ == '__main__':
     # Add the analyzers we are interested in
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="ta")
     cerebro.addanalyzer(bt.analyzers.SQN, _name="sqn")
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name="dd")
+    
 
     # Add a FixedSize sizer according to the stake
     cerebro.addsizer(bt.sizers.FixedSize, stake=1)
@@ -215,7 +247,7 @@ if __name__ == '__main__':
     # print the analyzers
     printTradeAnalysis(firstStrat.analyzers.ta.get_analysis())
     printSQN(firstStrat.analyzers.sqn.get_analysis())
+    printDrawDownAnalysis(firstStrat.analyzers.dd.get_analysis())
     
-    cerebro.plot(volume=False)
     
     
